@@ -69,9 +69,19 @@ Communication Status      = 'E' -read/Write  -Pin State: 0:0
   SOFTWARE.
 */
 /*
-  Library dependencies (use Arduino Library Manager)
-  MsgPacketizer >= V0.5.0 (REQUIRED, including all dependencies)
+  Library dependencies - available for install via Arduino IDE Library Manager
+  MsgPacketizer >= V0.5.0 (REQUIRED, including all dependencies*)
   
+  
+  *Note, MsgPacketizer installs FastCRC as a dependancy.  There is a bug that impacts at least some Arduino boards, 
+  if not all, in the form of an error on compile regarding a missing pgmspace.h.  For example:
+  "c:\Users\kenth\OneDrive\Documents\Arduino\libraries\FastCRC\src\FastCRC_tables.h:39:10: fatal error: pgmspace.h: No such file or directory"
+  A pull request was submitted to fix this problem moving forward, but its unclear when that will be pushed to the main branch.  If the error does
+  occur, go to the FastCRC_tables.h included in the error and change the line 39 from #include <pgmspace.h>	to
+  #include <avr/pgmspace.h>	
+  
+  Library Dependencies - Manual Install
+  Arduino-MemoryFree (OPTIONAL - only required if enabling Memory Monitor Feature) - https://github.com/mpflaga/Arduino-MemoryFree/
 */
 #include "Version.h"
 
