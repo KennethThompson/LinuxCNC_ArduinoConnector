@@ -398,7 +398,7 @@ class UDPConnection(Connection):
                 output = ''
                 for b in self.buffer:
                     output += f'[{hex(b)}] '
-                #print(output)
+                print(output)
                 #(b'\x05\x02\x94\x01\xce\x02\x01\x07\x11\xcd\x13\x88\x01m\x00', [], 0, ('192.168.1.88', 54321))
                 #b"\x0c\x02\x94\x01\xcd\x80\x11\xcd'\x10\x01#"
                 #sz = self.buffer[0]
