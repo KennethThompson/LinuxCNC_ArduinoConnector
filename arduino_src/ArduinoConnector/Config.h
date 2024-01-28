@@ -9,7 +9,7 @@
 #define OUTPUTS                   4
 //#define PWMOUTPUTS                5
 //#define AINPUTS                   6   
-#define DALLAS_TEMP_SENSOR        7
+//#define DALLAS_TEMP_SENSOR        7
 //#define LPOTIS                    8
 //#define BINSEL                    9
 //#define QUADENC                   10
@@ -18,18 +18,18 @@
 //#define DLED                      13
 //#define KEYPAD                    14
 //#define MEMORY_MONITOR            15 // Requires https://github.com/mpflaga/Arduino-MemoryFree/
-//#define RAPIDCHANGE_ATC           16
-#define STARTUP_OUTPINS_STATE      17 // Set output pin states at startup, see OutPinInitialState map below
-#define DISCONNECT_OUTPINS_STATE   18 // Set output pin states on disconnect from LinuxCNC, see OutPinOnDisconnectState map below.
+#define RAPIDCHANGE_ATC            16
+//#define STARTUP_OUTPINS_STATE      17 // Set output pin states at startup, see OutPinInitialState map below
+//#define DISCONNECT_OUTPINS_STATE   18 // Set output pin states on disconnect from LinuxCNC, see OutPinOnDisconnectState map below.
 
 // Connction-Related Options // Uncomment to enable. CHOSE ONLY ONE! Do not edit assigned index values.
 // Regardless of enabled option, debug/trace will be output via Serial.
 //#define SERIAL_TO_LINUXCNC          1 
-//#define ETHERNET_UDP_TO_LINUXCNC      2
+#define ETHERNET_UDP_TO_LINUXCNC      2
 //#define ETHERNET_TCP_TO_LINUXCNC    3 // FUTURE
 //#define WIFI_TCP_TO_LINUXCNC        4 // FUTURE
 //#define WIFI_UDP_TO_LINUXCNC        5 // FUTURE
-#define WIFI_UDP_ASYNC_TO_LINUXCNC  6 // FUTURE, REQUIRES Arduino Nano ESP32 or Equivalent 
+//#define WIFI_UDP_ASYNC_TO_LINUXCNC  6 // FUTURE, REQUIRES Arduino Nano ESP32 or Equivalent 
 
 //##### SERIAL CONNECTION OPTIONS ######
 #define DEFAULT_SERIAL_BAUD_RATE 115200
@@ -85,7 +85,7 @@ byte ARDUINO_MAC[] = {
 #endif
 
 #if DHCP == 0
-  IPAddress ARDUINO_IP(192, 168, 1, 111);
+  IPAddress ARDUINO_IP(10, 0, 0, 111);
 #endif
 
   //IPAddress SERVER_IP(192, 168, 1, 2);
@@ -118,8 +118,8 @@ byte ARDUINO_MAC[] = {
 
                     //Use Arduino IO's as Outputs. Define how many Outputs you want in total and then which Pins you want to be Outputs.
 #ifdef OUTPUTS
-  const int Outputs = 9;              //number of outputs
-  int OutPinmap[] = {4,5,6,7,8,9,10,11,12};
+  const int Outputs = 1;              //number of outputs
+  int OutPinmap[] = {5};
   #ifdef STARTUP_OUTPINS_STATE
     int OutPinInitialState[] = {1,1,1,1,1,1,1,1,1}; // Map to set initial pin states
   #endif
@@ -167,9 +167,9 @@ byte ARDUINO_MAC[] = {
   ACTION_PIN is the pin the RapidChange ATC script utilizes to trigger UP/DOWN of cover.
 */
 #ifdef RAPIDCHANGE_ATC
-  #define DIRECTION_PIN     0
-  #define STEP_PIN          1
-  #define ACTION_PIN        2
+  #define DIRECTION_PIN     2
+  #define STEP_PIN          3
+  #define ACTION_PIN        4
 #endif
                        
 /*This is a special mode of AInputs. My machine had originally Selector Knobs with many Pins on the backside to select different Speed Settings.

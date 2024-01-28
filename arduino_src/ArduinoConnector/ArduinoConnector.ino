@@ -113,6 +113,10 @@ featureMap fm;
   SerialClient _client(SERIAL_RX_TIMEOUT, fm.features);
 #endif
 
+#ifdef RAPIDCHANGE_ATC
+  #include "RapidChangeATC.h"
+#endif
+
 
 void setup() {
 
@@ -133,7 +137,6 @@ Serial.begin(DEFAULT_SERIAL_BAUD_RATE);
 //#endif
 
 #ifdef RAPIDCHANGE_ATC
-  #include "RapidChangeATC.h"
   setup_rapidchange();
 #endif
 

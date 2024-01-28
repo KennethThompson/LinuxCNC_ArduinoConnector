@@ -1,6 +1,6 @@
 #if !defined(RAPIDCHANGEATC_H_)
 #define RAPIDCHANGEATC_H_
-#include <Arduino.h>
+//#include <Arduino.h>
 
 // Constants defined for clarity
 //#define DIRECTION_PIN     0
@@ -31,7 +31,11 @@ int stepCounter = CLOSED_STEPS;
 int coverState = CLOSED_STATE;
 int stepIncrement = INCREMENT_CLOSE;
 
-void setup_rapidchange() {
+//void setuprapidchange();
+//void do_rapidchange_work();
+
+void setup_rapidchange() 
+{
   // Define pins  
   pinMode(ACTION_PIN, INPUT);
   pinMode(DIRECTION_PIN, OUTPUT);
@@ -42,7 +46,8 @@ void setup_rapidchange() {
   digitalWrite(STEP_PIN, LOW);
 }
 
-void do_rapidchange_work() {
+void do_rapidchange_work() 
+{
 
   // Check if we've received a new signal
   // If we have a new close signal
@@ -79,4 +84,5 @@ void do_rapidchange_work() {
     coverState = OPEN_STATE;
   }
 }
+
 #endif

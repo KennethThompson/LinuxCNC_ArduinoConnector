@@ -65,7 +65,8 @@ FeatureTypes = {
     'STATUSLED':12,
     'DLED':13,
     'KEYPAD':14,
-    'MEMORY_MONITOR':15
+    'MEMORY_MONITOR':15,
+    'RAPIDCHANGE_ATC':16
 }
 ConnectionFeatureTypes = {
     'SERIAL_TO_LINUXCNC':1,
@@ -203,6 +204,8 @@ class FeatureMapDecoder:
 class MessageDecoder:
     def __init__(self, b:bytes):
         self.parseBytes(b)
+        self.origip = None
+        self.origport = None
 
     def validateCRC(self, data:bytes, crc:bytes):
         hash = crc8.crc8()
@@ -226,8 +229,8 @@ class MessageDecoder:
         combined = (len(data_bytes)+1).to_bytes(1, 'big') + data_bytes 
         decoded = cobs.decode(combined) 
 
-        if self.validateCRC( data=decoded, crc=self.crc.to_bytes(1, 'big')) == False:
-            raise Exception(f"Error. CRC validation failed for received message. Bytes = {b}")
+        #if self.validateCRC( data=decoded, crc=self.crc.to_bytes(1, 'big')) == False:
+        #    raise Exception(f"Error. CRC validation failed for received message. Bytes = {b}")
         
         self.payload = msgpack.unpackb(data_bytes, use_list=True, raw=False)
 
@@ -265,11 +268,13 @@ class MessageEncoder:
 RX_MAX_QUEUE_SIZE = 10
 
 class ArduinoConn:
-    def __init__(self, bi:int, cs:ConnectionState, timeout:int):
+    def __init__(self, bi:int, cs:ConnectionState, timeout:int, ip:str, port:int):
         self.boardIndex = bi
         self.connectionState = cs
         self.timeout = timeout
         self.lastMessageReceived = time.time()
+        self.ip = ip
+        self.port = port
     def setState(self, newState:ConnectionState):
         if newState != self.connectionState:
             if debug_comm:print(f'PYDEBUG Board Index: {self.boardIndex}, changing state from {self.connectionState} to {newState}')
@@ -280,13 +285,27 @@ class Connection:
     # Constructor
     def __init__(self, myType:ConnectionType):
         self.connectionType = myType
-        self.arduinos = [ArduinoConn(bi=0, cs=ConnectionState.DISCONNECTED, timeout=10)] #TODO: Fix this. hard coded for testing, should be based on config
+        self.arduinos = [ArduinoConn(bi=0, cs=ConnectionState.DISCONNECTED, timeout=10, ip='', port=0)] #TODO: Fix this. hard coded for testing, should be based on config
         self.rxQueue = Queue(RX_MAX_QUEUE_SIZE)
 
     def sendCommand(self, m:str):
         cm = MessageEncoder().encodeBytes(mt=MessageType.MT_COMMAND, payload=[m, 1])
-        self.sendMessage(bytes(cm))
+        if self.isUDP() == True : 
+            for ard in self.arduinos:
+                # TODO: Remove this hard coding
+                self.sendMessage(bytes(cm), destip=ard.ip, destport=ard.port)
+        else: self.sendMessage(bytes(cm))
+    
+    def isSerial(self):
+        return False
+    
+    def isUDP(self):
+        return False
+    
+    def sendMessage(self, b: bytes, destip:str, destport:int):
+        pass
 
+    
     def onMessageRecv(self, m:MessageDecoder):
         if m.messageType == MessageType.MT_HANDSHAKE:
             if debug_comm:print(f'PYDEBUG onMessageRecv() - Received MT_HANDSHAKE, Values = {m.payload}')
@@ -305,19 +324,26 @@ class Connection:
                 if debug_comm:print(debugstr)
                 raise Exception(debugstr)
             
-            
+            for ard in self.arduinos:
+                # TODO: Remove this hard coding
+                ard.ip = m.origip
+                ard.port = m.origport
+                 
             fmd = FeatureMapDecoder(m.payload[1])
             if debug_comm:
                 ef = fmd.getEnabledFeatures()
                 print(f'PYDEBUG: Enabled Features : {ef}')
             to = m.payload[2] #timeout value
-            bi = m.payload[3]-1 # board index is always sent over incremeented by one
+            bi = m.payload[3]-1 # board index is always sent over incremeented by one. TODO: Remove this increment, no longer needed.
+            
+            
             
             self.arduinos[bi].setState(ConnectionState.CONNECTED)
             self.arduinos[bi].lastMessageReceived = time.time()
             self.arduinos[bi].timeout = to / 1000 # always delivered in ms, convert to seconds
             hsr = MessageEncoder().encodeBytes(mt=MessageType.MT_HANDSHAKE, payload=m.payload)
-            self.sendMessage(bytes(hsr))
+            if self.isUDP() == True : self.sendMessage(bytes(hsr), destip=m.origip, destport=m.origport)
+            else: self.sendMessage(bytes(hsr))
             
         if m.messageType == MessageType.MT_HEARTBEAT:
             if debug_comm:print(f'PYDEBUG onMessageRecv() - Received MT_HEARTBEAT, Values = {m.payload}')
@@ -328,7 +354,9 @@ class Connection:
                 return
             self.arduinos[bi].lastMessageReceived = time.time()
             hb = MessageEncoder().encodeBytes(mt=MessageType.MT_HEARTBEAT, payload=m.payload)
-            self.sendMessage(bytes(hb))
+            if self.isUDP() == True : self.sendMessage(bytes(hb), destip=m.origip, destport=m.origport)
+            else: self.sendMessage(bytes(hb))
+            #self.sendMessage(bytes(hb))
         if m.messageType == MessageType.MT_PINSTATUS:
             if debug_comm:print(f'PYDEBUG onMessageRecv() - Received MT_PINSTATUS, Values = {m.payload}')
             bi = m.payload[1]-1 # board index is always sent over incremeented by one
@@ -346,6 +374,8 @@ class Connection:
             #return None 
             #hb = MessageEncoder().encodeBytes(mt=MessageType.MT_HEARTBEAT, payload=m.payload)
             #self.sendMessage(bytes(hb))
+            
+
             
     def sendMessage(self, b:bytes):
         pass
@@ -383,6 +413,9 @@ class UDPConnection(Connection):
         self.sock.bind((listenip, listenport))
         self.sock.settimeout(1)
     
+    def isUDP(self):
+        return True
+    
     def startRxTask(self):
         # create and start the daemon thread
         #print('Starting background proceed watch task...')
@@ -393,8 +426,15 @@ class UDPConnection(Connection):
         self.shutdown = True
         self.daemon.join()
         
-    def sendMessage(self, b: bytes):
-        self.sock.sendto(b, (self.fromip, self.fromport))
+    #def sendMessage(self, b: bytes):
+    #    self.sock.sendto(b, (self.fromip, self.fromport))
+        #return super().sendMessage()
+        #self.arduino.write(b)
+        #self.arduino.flush()
+    #    pass
+    
+    def sendMessage(self, b: bytes, destip:str, destport:int):
+        self.sock.sendto(b, (destip, destport))
         #return super().sendMessage()
         #self.arduino.write(b)
         #self.arduino.flush()
@@ -419,8 +459,10 @@ class UDPConnection(Connection):
                 
                 try:
                     md = MessageDecoder(bytes(self.buffer))
-                    self.fromip = add[0] # TODO: Allow for multiple arduino's to communicate via UDP. Hardcoding is for lazy weasels!
-                    self.fromport = add[1]
+                    md.origip = add[0]
+                    md.origport = add[1]
+                    #self.fromip = add[0] # TODO: Allow for multiple arduino's to communicate via UDP. Hardcoding is for lazy weasels!
+                    #self.fromport = add[1]
                     self.onMessageRecv(m=md)
                 except Exception as ex:
                     just_the_string = traceback.format_exc()
@@ -444,7 +486,10 @@ class SerialConnetion(Connection):
         self.daemon = None
         self.arduino = serial.Serial(dev, 115200, timeout=1, xonxoff=False, rtscts=False, dsrdtr=True)
         self.arduino.timeout = 1
-        
+    
+    def isSerial(self):
+        return True
+    
     def startRxTask(self):
         # create and start the daemon thread
         #print('Starting background proceed watch task...')
